@@ -7,6 +7,11 @@ from .deps.zhon.hanzi import characters
 from .mecab_wrapper import getMorphemesMecab, getMecabIdentity
 from .deps.jieba import posseg
 
+import csv
+import io
+import itertools
+from .preferences import get_preference as cfg
+
 ####################################################################################################
 # Base Class
 ####################################################################################################
@@ -52,7 +57,7 @@ def getAllMorphemizers():
     # type: () -> [Morphemizer]
     global morphemizers
     if morphemizers is None:
-        morphemizers = [SpaceMorphemizer(), MecabMorphemizer(), JiebaMorphemizer(), CjkCharMorphemizer()]
+        morphemizers = [SpaceMorphemizer(), MecabMorphemizer(), JiebaMorphemizer(), CjkCharMorphemizer(), VietnameseMorphemizer()]
 
         for m in morphemizers:
             morphemizers_by_name[m.getName()] = m
@@ -110,6 +115,57 @@ class SpaceMorphemizer(Morphemizer):
     def getDescription(self):
         return 'Language w/ Spaces'
 
+####################################################################################################
+# Vietnamese Morphemizer
+####################################################################################################
+
+class VietnameseMorphemizer(Morphemizer):
+    """
+    Vietnamese contains many compound words where the polysyllabic morphemes are divided by spaces,
+    so the words in frequency.txt are used to identify words in expressions.
+    """
+
+    _known_words = []
+    _known_words_underscored = []
+    
+    def __init__(self):
+        super().__init__()
+        try:
+            frequencyListPath = cfg('path_frequency')
+            with io.open(frequencyListPath, encoding='utf-8-sig') as csvfile:
+                frequency_map = {}
+                csvreader = csv.reader(csvfile, delimiter="\t")
+                rows = [row for row in csvreader]
+
+                if rows[0][0] != "#study_plan_frequency":
+                    frequency_map = dict(zip([row[0] for row in rows], itertools.count(0)))
+                    self._setKnownWords(list(frequency_map.keys()))
+
+        except (FileNotFoundError, IndexError) as e:
+            pass
+    
+    def _setKnownWords(self, words):
+        words.sort(key=len)
+        words.reverse()
+        for word in words:
+            # Only include words that contain spaces
+            if ' ' in word:
+                self._known_words.append(word)
+                self._known_words_underscored.append(word.replace(' ', '_'))
+
+    def _getMorphemesFromExpr(self, expression):
+        e_low = expression.lower()
+        for i, word in enumerate(self._known_words):
+            e_low = e_low.replace(word, self._known_words_underscored[i])
+        
+        tokens = SpaceMorphemizer._getMorphemesFromExpr(self, e_low)
+        for word in tokens:
+            word.base = word.base.replace('_', ' ')
+        
+        return tokens
+
+    def getDescription(self):
+        return 'Vietnamese'
 
 ####################################################################################################
 # CJK Character Morphemizer

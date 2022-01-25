@@ -99,7 +99,8 @@ def markFocusSeen(self, n):
         return
 
     seenMorphs.update(focusMorphs)
-    q = focusQuery(focusName(), focusMorphs)
+    q = focusQuery(focusName(), focusMorphs).replace('\ ', ' ')
+
     num_skipped = len(self.mw.col.findNotes(q)) - 1
     if num_skipped and cfg('print number of alternatives skipped'):
         tooltip(_('%d alternatives will be skipped' % num_skipped))
