@@ -151,7 +151,7 @@ class VietnameseMorphemizer(Morphemizer):
             # Only include words that contain spaces
             if ' ' in word:
                 self._known_words.append(word)
-                self._known_words_underscored.append(word.replace(' ', '_'))
+                self._known_words_underscored.append('#%' + word.replace(' ', '_') + '#%')
 
     def _getMorphemesFromExpr(self, expression):
         e_low = expression.lower()
@@ -160,7 +160,7 @@ class VietnameseMorphemizer(Morphemizer):
         
         tokens = SpaceMorphemizer._getMorphemesFromExpr(self, e_low)
         for word in tokens:
-            word.base = word.base.replace('_', ' ')
+            word.norm = word.base = word.inflected = word.read = word.base.replace('_', ' ').replace('#%', '')
         
         return tokens
 
